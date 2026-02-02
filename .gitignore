@@ -27,3 +27,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# VIRK Data & Artifacts
+temp_data/
+cifar10_eval/
+demo_data/
+demo_prod_data/
+eval_report_*/
+demo_output/
+incidents/
+*.zip
