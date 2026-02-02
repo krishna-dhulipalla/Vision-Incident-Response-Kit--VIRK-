@@ -1,0 +1,80 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>VIRK Evaluation Report</title>
+            <style>
+                body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                h1, h2 { color: #333; }
+                .metric { background: #f4f4f4; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .good { color: green; font-weight: bold; }
+                .bad { color: red; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <h1>VIRK Evaluation Report</h1>
+            
+            <h2>1. Drift Detection Performance</h2>
+            <div class="metric">
+                <strong>Overall AUROC:</strong> 1.0000<br>
+                Clean Mean Score: 0.0008 (std: 0.0000)<br>
+                Drifted Mean Score: 0.0210 (std: 0.0182)
+            </div>
+            
+            <h3>Per-Shift Performance</h3>
+            <table>
+                <tr>
+                    <th>Shift</th>
+                    <th>AUROC</th>
+                    <th>Clean Mean</th>
+                    <th>Shift Mean</th>
+                </tr>
+        
+                <tr>
+                    <td>brightness_s3</td>
+                    <td>1.0000</td>
+                    <td>0.0008</td>
+                    <td>0.0064</td>
+                </tr>
+            
+                <tr>
+                    <td>gaussian_blur_s3</td>
+                    <td>1.0000</td>
+                    <td>0.0008</td>
+                    <td>0.0478</td>
+                </tr>
+            
+                <tr>
+                    <td>gaussian_noise_s3</td>
+                    <td>1.0000</td>
+                    <td>0.0008</td>
+                    <td>0.0021</td>
+                </tr>
+            
+                <tr>
+                    <td>defocus_blur_s3</td>
+                    <td>1.0000</td>
+                    <td>0.0008</td>
+                    <td>0.0275</td>
+                </tr>
+            
+            </table>
+            
+            <h2>2. Fingerprinting Accuracy</h2>
+        
+            <div class="metric">
+                <strong>Overall Accuracy:</strong> 0.7500
+            </div>
+            
+            <h3>Confusion Matrix</h3>
+            <table>
+                <tr>
+                    <th>True \ Pred</th>
+        <th>brightness</th><th>defocus_blur</th><th>gaussian_blur</th><th>gaussian_noise</th></tr><tr><td><b>brightness</b></td><td style='background-color: #e6fffa;'>1</td><td style=''>0</td><td style=''>0</td><td style=''>0</td></tr><tr><td><b>defocus_blur</b></td><td style=''>0</td><td style='background-color: #e6fffa;'>1</td><td style=''>0</td><td style=''>0</td></tr><tr><td><b>gaussian_blur</b></td><td style=''>0</td><td style=''>0</td><td style='background-color: #e6fffa;'>1</td><td style=''>0</td></tr><tr><td><b>gaussian_noise</b></td><td style='background-color: #e6fffa;'>1</td><td style=''>0</td><td style=''>0</td><td style=''>0</td></tr>
+            </table>
+        </body>
+        </html>
+        
