@@ -18,9 +18,10 @@ VIRK is a Python library designed for ML platform engineers. It provides drift d
 ## Installation
 
 ```bash
-pip install virk
+pip install git+https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-
 # Optional: Install S3 and Plotting support
-pip install virk[s3, plot]
+# Note: Syntax for extras with git installs
+pip install "virk[s3,plot] @ git+https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-"
 ```
 
 ## Quick Start (Local)
