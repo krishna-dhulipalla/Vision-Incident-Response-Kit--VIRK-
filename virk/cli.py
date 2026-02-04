@@ -3,21 +3,44 @@ import sys
 import os
 from virk.eval.engine import EvalEngine
 from virk.eval.reporter import ReportGenerator
+from virk.eval.datasets import DATASET_REGISTRY
 
 def eval_command(args):
-    print(f"Starting evaluation on {args.dataset}...")
+    dataset_name = args.dataset_name
+    output_dir = args.output_dir
+    data_dir = args.data_dir or f"{dataset_name}_eval"
     
+    print(f"Starting evaluation on {dataset_name}...")
+    
+    # 0. Setup Data
+    if dataset_name in DATASET_REGISTRY:
+        DATASET_REGISTRY[dataset_name](data_dir)
+    else:
+        # Assume data_dir is a custom path if name not in registry
+        if not os.path.exists(data_dir):
+            print(f"Error: Dataset {dataset_name} not supported and directory {data_dir} does not exist.")
+            return
+
     # 1. Create Output Dir
-    os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
     # 2. Run Engine
-    engine = EvalEngine(args.dataset, args.output_dir)
+    engine = EvalEngine(data_dir, output_dir)
     results = engine.run()
     
     # 3. Generate Report
     reporter = ReportGenerator()
-    report_path = os.path.join(args.output_dir, "report.html")
+    import time
+    ts = int(time.time())
+    report_path = os.path.join(output_dir, f"report_{dataset_name}_{ts}.html")
     reporter.generate(results, report_path)
+    print(f"Report generated at: {report_path}")
+    
+    # 4. Cleanup
+    if args.keep_data:
+        print(f"Intermediate data kept in {output_dir}/shifted_data")
+    else:
+        engine.cleanup()
 
 def main():
     parser = argparse.ArgumentParser(description="VIRK CLI")
@@ -25,8 +48,10 @@ def main():
     
     # Eval Command
     eval_parser = subparsers.add_parser("eval", help="Run evaluation harness")
-    eval_parser.add_argument("--dataset", required=True, help="Path to clean image dataset")
+    eval_parser.add_argument("--dataset-name", default="cifar10", choices=["cifar10", "flowers102", "custom"], help="Dataset to use")
+    eval_parser.add_argument("--data-dir", help="Path to data (optional if using built-in datasets)")
     eval_parser.add_argument("--output-dir", default="eval_out", help="Directory for output artifacts")
+    eval_parser.add_argument("--keep-data", action="store_true", help="Keep generated shifted images after evaluation")
     
     # Incident Summary Command
     summary_parser = subparsers.add_parser("summarize", help="Summarize incident bundle")

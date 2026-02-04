@@ -33,7 +33,9 @@ class MetricCalculator:
             "clean_mean": float(np.mean(clean_scores)),
             "shifted_mean": float(np.mean(drifted_scores)),
             "clean_std": float(np.std(clean_scores)),
-            "shifted_std": float(np.std(drifted_scores))
+            "shifted_std": float(np.std(drifted_scores)),
+            # FPR at specific threshold (e.g. 0.05 implies drift)
+            "fpr_0_05": float(np.mean(np.array(clean_scores) > 0.05))
         }
 
     @staticmethod

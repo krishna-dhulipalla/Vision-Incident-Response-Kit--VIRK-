@@ -30,10 +30,14 @@ venv.bak/
 
 # VIRK Data & Artifacts
 temp_data/
-cifar10_eval/
-demo_data/
+*_eval/
 demo_prod_data/
 eval_report_*/
 demo_output/
 incidents/
 *.zip
+
+# Demo Artifacts
+mock_s3_bucket/
+temp_inference/
+temp_bundles/

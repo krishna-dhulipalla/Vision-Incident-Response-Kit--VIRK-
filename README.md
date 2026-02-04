@@ -1,136 +1,138 @@
 # Vision Incident Response Kit (VIRK)
 
-**Diagnostic tooling for vision model failures in production.**
+<div align="center">
 
-VIRK is a Python library designed for ML platform engineers. It provides drift detection, root cause fingerprinting, and deterministic reproduction bundles for image classification pipelines. It is designed to sit alongside your inference service (FastAPI/Triton), not replace it.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Status](https://img.shields.io/badge/Status-Beta-green)]()
 
-## Features
+**Production diagnostics for vision model failures.**
 
-- **Drift Monitor (`timm` compatible)**: Detects distribution shift using Maximum Mean Discrepancy (MMD) on feature embeddings.
-- **Calibrated Fingerprinting**: Identifies shift types (Blur, Noise, Brightness, JPEG) using Z-score normalization against a clean baseline.
-- **Multi-dimensional Slicing**: Attributes drift to metadata intersections (e.g., `camera_id=02` AND `time=night`).
-- **Incident Bundling**: Creates deterministic, hashed zip bundles containing the specific images and a `replay.py` script for local reproduction.
-- **Operational Integration**:
-  - **Middleware**: Drop-in wrapper for inference loops.
-  - **Prometheus**: Native exporter for drift magnitude and top-cause counters.
-  - **S3 Support**: Automatically offload incident bundles to scalable storage.
+</div>
+
+VIRK is a lightweight "flight recorder" for computer vision pipelines. It sits alongside your inference service, detects conceptual drift (blur, lighting, camera shifts), diagnoses the root cause, and automatically bundles "incident packs" for reproducible debugging.
+
+## Key Features
+
+- **🔎 Automated Drift Detection**: Scalable MMD-based detection (O(1) complexity) to spot distribution shifts instantly.
+- **🧬 Cause Fingerprinting**: Tells you _why_ it failed (e.g., "Motion Blur detected", "Brightness shift").
+- **🍰 Metadata Slicing**: Identifies _where_ it failed (e.g., "Camera 02 at Night").
+- **📦 Incident Bundler**: Automatically creates zip bundles with images, metadata, and a replay script for local reproduction.
+- **🔌 Production Middleware**: Drop-in wrapper for your inference loop.
 
 ## Installation
 
+### From Source (Recommended)
+
+VIRK is currently in active development. We recommend installing in **editable mode** to access the CLI tools:
+
 ```bash
-pip install git+https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-
-# Optional: Install S3 and Plotting support
-# Note: Syntax for extras with git installs
-pip install "virk[s3,plot] @ git+https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-"
+git clone https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-.git
+cd Vision-Incident-Response-Kit--VIRK-
+pip install -e .
 ```
 
-## Quick Start (Local)
+### Optional Dependencies
 
-```python
-import numpy as np
-from virk.monitor.extractor import TimmExtractor
-from virk.fingerprint.matcher import Fingerprinter
+- **S3 Storage**: `pip install -e .[s3]`
+- **Plotting**: `pip install -e .[plot]`
+- **OpenTelemetry**: `pip install -e .[otel]`
 
-# 1. Initialize with Reference Data (Clean Baseline)
-# VIRK uses a pretrained ResNet18 by default for feature extraction
-extractor = TimmExtractor(model_name='resnet18', pretrained=True)
-ref_paths = ["./data/clean_1.jpg", "./data/clean_2.jpg", ...]
-ref_embs = extractor.extract(ref_paths)
+## Quick Start: Benchmarking
 
-# 2. Calibrate Fingerprinter (Establishes noise floor)
-fingerprinter = Fingerprinter(extractor, ref_paths)
-fingerprinter.calibrate()
+Verify VIRK's performance on standard datasets using the built-in evaluation harness.
 
-# 3. Diagnose Production Batch
-prod_embs = extractor.extract(prod_paths)
-diagnosis = fingerprinter.diagnose(prod_embs)
+```bash
+# Evaluate on CIFAR-10 (Standard)
+virk eval --dataset-name cifar10
 
-print(f"Top Shift Cause: {diagnosis.top_cause} (Z-Score: {diagnosis.top_score:.2f})")
-# Output: Top Shift Cause: MOTION_BLUR (Z-Score: 12.45)
+# Evaluate on Flowers-102 (Fine-grained)
+virk eval --dataset-name flowers102
 ```
 
-## Production Integration
+_Results will be saved to `eval_out/report_<dataset>_<timestamp>.html`._
 
-### Middleware Pattern
+## Integration Guide
 
-Wrap your inference logic to automatically track drift and log incidents.
+### 1. The Easy Way: `VirkMiddleware`
+
+Wrap your prediction logic with our middleware. It handles drift detection, metric emission, and incident bundling automatically.
 
 ```python
 from virk.integration.middleware import VirkMiddleware
 from virk.monitor.window import WindowedDriftDetector
+from virk.repro.bundler import ReproBundler
+from virk.repro.storage import S3Storage
 
-# Initialize components
-detector = WindowedDriftDetector(ref_embs, window_size=1000)
-middleware = VirkMiddleware(detector, fingerprinter, service_name="inspection-v1")
+# 1. Setup Components
+detector = WindowedDriftDetector(ref_embeddings, window_size=1000)
+bundler = ReproBundler(output_dir="/tmp/bundles")
+storage = S3Storage(bucket="my-incident-bucket")
 
-# In your inference loop
-def predict(batch_images, metadata):
-    embeddings = model.encode(batch_images)
+# 2. Initialize Middleware
+monitor = VirkMiddleware(
+    drift_detector=detector,
+    bundler=bundler,
+    storage=storage,
+    incident_threshold=0.05, # Sensitivity
+    service_name="vision-service"
+)
 
-    # Async hook: updates metrics, logs drift, uploads incidents if critical
-    middleware.process_batch(embeddings, metadata)
+# 3. Inside your inference loop
+def predict(images):
+    embeddings = model.encode(images)
+    # ... logic ...
 
-    return model.classify(embeddings)
+    # 🔗 Hook! (Non-blocking usually recommended)
+    monitor.process_batch(
+        embeddings=embeddings,
+        image_paths=[img.path for img in images],
+        metadata=[{"cam": img.cam_id} for img in images]
+    )
 ```
 
-### Prometheus Metrics
+### 2. See it in Action (FastAPI Demo)
 
-VIRK exposes standard metrics on port 8000 by default when using `virk.integration.prometheus`.
+Run a complete end-to-end demo service that simulates drift and triggers an incident response:
 
-- `virk_drift_magnitude{ref_id="baseline"}`: Gauge (0.0 - 1.0)
-- `virk_drift_detected_total{cause="motion_blur"}`: Counter
+```bash
+python examples/fastapi_service.py
+```
 
 ## CLI Tools
 
-### Evaluation Harness
+### Incident Summary
 
-Verify VIRK's sensitivity on your dataset before deploying.
-
-```bash
-# Run standard corruption suite on your clean data
-python -m virk.cli eval --dataset ./cifar10_clean --output-dir ./report
-```
-
-_Outputs `report.html` with AUROC and Confusion Matrices._
-
-### Incident Summarizer
-
-Get instant Root Cause Analysis (RCA) from a downloaded repro bundle.
+Instant Root Cause Analysis (RCA) on a captured bundle:
 
 ```bash
-virk incident summarize incident_a1b2.zip
+virk incident summarize incident_1234abcd.zip
 ```
 
 **Output:**
 
 ```text
-VIRK INCIDENT SUMMARY: incident_a1b2
 ==================================================
-Timestamp:   2026-02-02 14:30:00
-Drift Mag:   0.0921 (CRITICAL)
-Data Hash:   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+ VIRK INCIDENT SUMMARY: 1234abcd
+==================================================
+Timestamp:   2024-03-20T10:00:00
+Drift Mag:   0.1542 (CRITICAL)
 
 Probable Root Cause:
-  > MOTION_BLUR (Score: 12.45)
-  > (Secondary) DEFOCUS_BLUR (Score: 8.10)
+  > MOTION_BLUR (Score: 0.82)
+  > (Secondary) DEFOCUS_BLUR (Score: 0.12)
 
 Affected Slices (Targeting Guidance):
-  - camera_id:cam_02 (Contribution: 0.045)
+  - camera_id:cam_02 (Contribution: 0.082)
 --------------------------------------------------
-Action: Run 'python replay.py' inside the unzipped bundle for reproduction.
+Action: Run 'python replay.py' inside the unzipped bundle.
+==================================================
 ```
 
-## Performance Benchmarks
+## Contributing
 
-Validated on **CIFAR-10** (Natural Images) with synthetic corruptions (Severity 3).
+Running tests:
 
-| Corruption Type      | Detection AUROC | Feature                                             |
-| :------------------- | :-------------- | :-------------------------------------------------- |
-| **JPEG Compression** | **1.00**        | Perfect separation from clean baseline.             |
-| **Scale / Resize**   | **1.00**        | Robustly detected as resolution artifacts.          |
-| **Motion Blur**      | **0.75**        | Detectable; may alias with Defocus Blur in low-res. |
-| **Gaussian Noise**   | **1.00**        | Highly sensitive to sensor noise.                   |
-
-## License
-
-Apache 2.0
+```bash
+pytest tests/
+```

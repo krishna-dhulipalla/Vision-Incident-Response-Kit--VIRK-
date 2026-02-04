@@ -112,3 +112,11 @@ class EvalEngine:
         report["per_shift_detection"] = shift_results
         
         return report
+
+    def cleanup(self):
+        """Remove generated shifted data to save space."""
+        shift_dir = os.path.join(self.output_dir, "shifted_data")
+        if os.path.exists(shift_dir):
+            import shutil
+            shutil.rmtree(shift_dir)
+            print(f"Cleaned up generated data in {shift_dir}")
