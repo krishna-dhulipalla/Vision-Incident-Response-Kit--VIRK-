@@ -57,14 +57,39 @@ def main():
     summary_parser = subparsers.add_parser("summarize", help="Summarize incident bundle")
     summary_parser.add_argument("bundle", help="Path to incident zip or folder")
     
+    # Calibrate Command
+    cal_parser = subparsers.add_parser("calibrate", help="Recommend drift thresholds")
+    cal_parser.add_argument("--dataset", required=True, help="Path to clean dataset")
+    cal_parser.add_argument("--fpr", type=float, default=0.05, help="Target False Positive Rate (default 0.05)")
+    cal_parser.add_argument("--batch-size", type=int, default=32, help="Batch size for simulation")
+    
     args = parser.parse_args()
     
     if args.command == "eval":
         eval_command(args)
     elif args.command == "summarize":
         summarize_command(args)
+    elif args.command == "calibrate":
+        calibrate_command(args)
     else:
         parser.print_help()
+
+def calibrate_command(args):
+    from virk.eval.calibration import CalibrationEngine
+    
+    print(f"Running Calibration on {args.dataset}")
+    engine = CalibrationEngine(args.dataset)
+    
+    result = engine.calibrate(fpr_target=args.fpr, batch_size=args.batch_size)
+    
+    print("\n" + "="*50)
+    print(" VIRK THRESHOLD CALIBRATION")
+    print("="*50)
+    print(f"Target FPR:          {result['target_fpr']*100:.1f}%")
+    print(f"Max Clean Score:     {result['max_clean_score']:.6f}")
+    print("-" * 50)
+    print(f"RECOMMENDED THRESHOLD: {result['recommended_threshold']:.6f}")
+    print("="*50 + "\n")
 
 def summarize_command(args):
     """

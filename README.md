@@ -12,19 +12,33 @@
 
 VIRK is a lightweight "flight recorder" for computer vision pipelines. It sits alongside your inference service, detects conceptual drift (blur, lighting, camera shifts), diagnoses the root cause, and automatically bundles "incident packs" for reproducible debugging.
 
+## Architecture
+
+```mermaid
+graph LR
+    Inference[Inference Service] -->|Embeddings| MW[Middleware]
+    MW -->|Sync Check| Detector{Drift?}
+    Detector -->|No| Metrics[Prometheus/OTel]
+    Detector -->|Yes| Queue[(Async Queue)]
+
+    subgraph Background Worker
+        Queue --> Fingerprinter
+        Queue --> Slicer
+        Fingerprinter --> Bundler
+    end
+
+    Bundler -->|Zip| Storage[S3 / Local]
+    Bundler -->|Alert| Metrics
+```
+
 ## Key Features
 
 - **🔎 Automated Drift Detection**: Scalable MMD-based detection (O(1) complexity) to spot distribution shifts instantly.
+- **⚡ Async & Non-Blocking**: Heavy diagnostics (Fingerprinting, Bundling) run in a background thread, keeping your latency low.
 - **🧬 Cause Fingerprinting**: Tells you _why_ it failed (e.g., "Motion Blur detected", "Brightness shift").
-- **🍰 Metadata Slicing**: Identifies _where_ it failed (e.g., "Camera 02 at Night").
 - **📦 Incident Bundler**: Automatically creates zip bundles with images, metadata, and a replay script for local reproduction.
-- **🔌 Production Middleware**: Drop-in wrapper for your inference loop.
 
 ## Installation
-
-### From Source (Recommended)
-
-VIRK is currently in active development. We recommend installing in **editable mode** to access the CLI tools:
 
 ```bash
 git clone https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-.git
@@ -35,55 +49,31 @@ pip install -e .
 ### Optional Dependencies
 
 - **S3 Storage**: `pip install -e .[s3]`
-- **Plotting**: `pip install -e .[plot]`
-- **OpenTelemetry**: `pip install -e .[otel]`
-
-## Quick Start: Benchmarking
-
-Verify VIRK's performance on standard datasets using the built-in evaluation harness.
-
-```bash
-# Evaluate on CIFAR-10 (Standard)
-virk eval --dataset-name cifar10
-
-# Evaluate on Flowers-102 (Fine-grained)
-virk eval --dataset-name flowers102
-```
-
-_Results will be saved to `eval_out/report_<dataset>_<timestamp>.html`._
+- **Prometheus**: `pip install -e .[prometheus]`
 
 ## Integration Guide
 
-### 1. The Easy Way: `VirkMiddleware`
+### 1. The Easy Way: `VirkMiddleware.create()`
 
-Wrap your prediction logic with our middleware. It handles drift detection, metric emission, and incident bundling automatically.
+Wrap your prediction logic with our middleware. The `create()` factory uses sensible defaults: async processing, Prometheus metrics, and local/S3 bundling.
 
 ```python
 from virk.integration.middleware import VirkMiddleware
-from virk.monitor.window import WindowedDriftDetector
-from virk.repro.bundler import ReproBundler
-from virk.repro.storage import S3Storage
 
-# 1. Setup Components
-detector = WindowedDriftDetector(ref_embeddings, window_size=1000)
-bundler = ReproBundler(output_dir="/tmp/bundles")
-storage = S3Storage(bucket="my-incident-bucket")
-
-# 2. Initialize Middleware
-monitor = VirkMiddleware(
-    drift_detector=detector,
-    bundler=bundler,
-    storage=storage,
-    incident_threshold=0.05, # Sensitivity
-    service_name="vision-service"
+# 1. Initialize (One Line)
+monitor = VirkMiddleware.create(
+    reference_embeddings=ref_data,  # Your training/baseline embeddings
+    extractor=model,                 # Feature extractor (e.g. TIMM model)
+    output_dir="/tmp/bundles",       # Where to save incidents
+    metrics_type="prometheus",       # 'prometheus', 'otel', or 'none'
+    async_processing=True            # Run heavy tasks in background
 )
 
-# 3. Inside your inference loop
+# 2. Inside your inference loop
 def predict(images):
     embeddings = model.encode(images)
-    # ... logic ...
 
-    # 🔗 Hook! (Non-blocking usually recommended)
+    # 🔗 Hook! (Non-blocking)
     monitor.process_batch(
         embeddings=embeddings,
         image_paths=[img.path for img in images],
@@ -91,9 +81,30 @@ def predict(images):
     )
 ```
 
-### 2. See it in Action (FastAPI Demo)
+### 2. Calibration (FPR Targeting)
 
-Run a complete end-to-end demo service that simulates drift and triggers an incident response:
+Don't guess your drift threshold. Use `calibrate` to find a threshold that guarantees a specific False Positive Rate (e.g., 5%) on your clean data.
+
+```bash
+virk calibrate --dataset path/to/clean_data --fpr 0.05
+```
+
+**Output:**
+
+```text
+==================================================
+ VIRK THRESHOLD CALIBRATION
+==================================================
+Target FPR:          5.0%
+Max Clean Score:     0.0421
+--------------------------------------------------
+RECOMMENDED THRESHOLD: 0.038512
+==================================================
+```
+
+## Demo
+
+Run the complete end-to-end FastAPI demo service:
 
 ```bash
 python examples/fastapi_service.py
@@ -109,24 +120,12 @@ Instant Root Cause Analysis (RCA) on a captured bundle:
 virk incident summarize incident_1234abcd.zip
 ```
 
-**Output:**
+### Benchmarking
 
-```text
-==================================================
- VIRK INCIDENT SUMMARY: 1234abcd
-==================================================
-Timestamp:   2024-03-20T10:00:00
-Drift Mag:   0.1542 (CRITICAL)
+Verify VIRK's performance on standard datasets:
 
-Probable Root Cause:
-  > MOTION_BLUR (Score: 0.82)
-  > (Secondary) DEFOCUS_BLUR (Score: 0.12)
-
-Affected Slices (Targeting Guidance):
-  - camera_id:cam_02 (Contribution: 0.082)
---------------------------------------------------
-Action: Run 'python replay.py' inside the unzipped bundle.
-==================================================
+```bash
+virk eval --dataset-name cifar10
 ```
 
 ## Contributing

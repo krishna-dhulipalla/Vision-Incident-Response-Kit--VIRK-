@@ -48,32 +48,18 @@ print("Initializing VIRK Monitor...")
 # Real app: Load from disk
 ref_data = np.random.normal(0, 1, (200, 512)).astype(np.float32) 
 
-# 2. Components
-detector = WindowedDriftDetector(ref_data, window_size=50, update_freq=10)
-# Mock fingerprinter for demo (needs real extractor usually)
-# We skip fingerprinter here or mock it? 
-# Let's mock the extraction part inside fingerprinter? 
-# For demo simplicity, we omit fingerprinter unless we have real images/extractor.
-# We will use Slicer and Bundler.
-
-# 3. Ops
-storage = LocalStorage(output_dir="./mock_s3_bucket")
-bundler = ReproBundler(output_dir="./temp_bundles")
-slicer = SliceEngine(detector) # Uses the same drift logic for slicing
-
-# 4. Middleware (The Glue)
-# Incident Threshold set low (0.05) to trigger easily in demo
-monitor = VirkMiddleware(
-    drift_detector=detector,
-    bundler=bundler,
-    storage=storage,
-    slicer=slicer,
-    incident_threshold=0.05, 
-    service_name="demo-vision-service"
+# 2. Monitor Setup (The New Way: Factory Pattern)
+# Note: For demo simplicity, we use the same ResNetClassifier as "extractor".
+# In reality, you'd pass the actual feature extractor (timm model).
+monitor = VirkMiddleware.create(
+    reference_embeddings=ref_data,
+    extractor=model, # Mock extractor
+    reference_paths=None, # Skip fingerprinter for this mocked demo
+    output_dir="./incidents",
+    metrics_type="prometheus", # Built-in!
+    service_name="demo-vision-service",
+    async_processing=True # Non-blocking!
 )
-
-# Start Prometheus
-init_prometheus(port=8000)
 
 @app.post("/predict")
 async def predict_batch(files: List[UploadFile] = File(...)):
