@@ -33,8 +33,8 @@ graph LR
 
 ## Key Features
 
-- **🔎 Automated Drift Detection**: Scalable MMD-based detection (O(1) complexity) to spot distribution shifts instantly.
-- **⚡ Async & Non-Blocking**: Heavy diagnostics (Fingerprinting, Bundling) run in a background thread, keeping your latency low.
+- **🔎 Scalable Drift Detection**: Uses Linear MMD with subsampling. Complexity is **O(k²)** (where k=subsample size, e.g. 1000) regardless of total stream volume N. O(1) relative to traffic.
+- **⚡ Async & Non-Blocking**: Heavy diagnostics (Fingerprinting, Bundling) run in a background thread thread pool (default queue size=100). If the queue fills up under heavy load, new drift events are dropped (Load Shedding) to protect inference latency.
 - **🧬 Cause Fingerprinting**: Tells you _why_ it failed (e.g., "Motion Blur detected", "Brightness shift").
 - **📦 Incident Bundler**: Automatically creates zip bundles with images, metadata, and a replay script for local reproduction.
 
@@ -50,22 +50,24 @@ pip install -e .
 
 - **S3 Storage**: `pip install -e .[s3]`
 - **Prometheus**: `pip install -e .[prometheus]`
+- **OpenTelemetry**: `pip install -e .[otel]`
 
 ## Integration Guide
 
 ### 1. The Easy Way: `VirkMiddleware.create()`
 
-Wrap your prediction logic with our middleware. The `create()` factory uses sensible defaults: async processing, Prometheus metrics, and local/S3 bundling.
+Wrap your prediction logic with our middleware. The `create()` factory uses sensible defaults.
 
 ```python
 from virk.integration.middleware import VirkMiddleware
 
 # 1. Initialize (One Line)
+# Note: 'extractor' must be a Callable or Model that takes images and returns embeddings.
 monitor = VirkMiddleware.create(
     reference_embeddings=ref_data,  # Your training/baseline embeddings
-    extractor=model,                 # Feature extractor (e.g. TIMM model)
+    extractor=model,                 # Feature extractor (e.g. TIMM model interface)
     output_dir="/tmp/bundles",       # Where to save incidents
-    metrics_type="prometheus",       # 'prometheus', 'otel', or 'none'
+    metrics_type="prometheus",       # 'prometheus', 'otel', or 'none'. Otel falls back to Prom if missing.
     async_processing=True            # Run heavy tasks in background
 )
 
@@ -102,12 +104,13 @@ RECOMMENDED THRESHOLD: 0.038512
 ==================================================
 ```
 
-## Demo
+## DemoService
 
-Run the complete end-to-end FastAPI demo service:
+VIRK comes with a production-ready demo service you can run immediately:
 
 ```bash
-python examples/fastapi_service.py
+# Runs uvicorn with the demo app
+virk demo-prod --port 8080
 ```
 
 ## CLI Tools

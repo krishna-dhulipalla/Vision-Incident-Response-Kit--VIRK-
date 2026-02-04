@@ -90,11 +90,8 @@ class VirkMiddleware:
         slicer = SliceEngine(detector)
         
         # 2. Metrics
-        backend = NoOpBackend()
-        if metrics_type == "otel":
-            backend = OTelBackend(service_name)
-        elif metrics_type == "prometheus":
-            backend = PrometheusBackend(port=8000) # Default port
+        from virk.integration.metrics import get_backend
+        backend = get_backend(service_name, metrics_type)
             
         return cls(
             drift_detector=detector,

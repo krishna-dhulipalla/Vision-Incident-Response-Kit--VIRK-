@@ -53,8 +53,16 @@ def main():
     eval_parser.add_argument("--output-dir", default="eval_out", help="Directory for output artifacts")
     eval_parser.add_argument("--keep-data", action="store_true", help="Keep generated shifted images after evaluation")
     
-    # Incident Summary Command
-    summary_parser = subparsers.add_parser("summarize", help="Summarize incident bundle")
+    # Incident Sub-commands
+    incident_parser = subparsers.add_parser("incident", help="Incident management")
+    inc_subparsers = incident_parser.add_subparsers(dest="inc_command")
+    
+    # virk incident summarize
+    inc_sum_parser = inc_subparsers.add_parser("summarize", help="Summarize incident bundle")
+    inc_sum_parser.add_argument("bundle", help="Path to incident zip or folder")
+    
+    # Deprecated: Top-level summarize
+    summary_parser = subparsers.add_parser("summarize", help="[DEPRECATED] Use 'virk incident summarize'")
     summary_parser.add_argument("bundle", help="Path to incident zip or folder")
     
     # Calibrate Command
@@ -62,15 +70,32 @@ def main():
     cal_parser.add_argument("--dataset", required=True, help="Path to clean dataset")
     cal_parser.add_argument("--fpr", type=float, default=0.05, help="Target False Positive Rate (default 0.05)")
     cal_parser.add_argument("--batch-size", type=int, default=32, help="Batch size for simulation")
+
+    # Demo Prod Command
+    demo_parser = subparsers.add_parser("demo-prod", help="Run production demo service")
+    demo_parser.add_argument("--host", default="0.0.0.0", help="Host to bind")
+    demo_parser.add_argument("--port", type=int, default=8080, help="Port to bind")
     
     args = parser.parse_args()
     
     if args.command == "eval":
         eval_command(args)
+    elif args.command == "incident":
+        if args.inc_command == "summarize":
+            summarize_command(args)
+        else:
+            incident_parser.print_help()
     elif args.command == "summarize":
+        print("Warning: 'virk summarize' is deprecated. Please use 'virk incident summarize'.")
         summarize_command(args)
     elif args.command == "calibrate":
         calibrate_command(args)
+    elif args.command == "demo-prod":
+        import uvicorn
+        print(f"Starting VIRK Demo Service on http://{args.host}:{args.port}")
+        # Assuming examples.fastapi_service is importable
+        # We might need to ensure sys.path or import it dynamically
+        uvicorn.run("examples.fastapi_service:app", host=args.host, port=args.port, reload=False)
     else:
         parser.print_help()
 

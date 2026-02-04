@@ -34,7 +34,7 @@ class OTelBackend(MetricsBackend):
                 description="Count of drift events detected"
             )
         except ImportError:
-            logger.warning("OpenTelemetry not installed. Metrics will be dropped.")
+            # Should be handled by factory, but safe guard
             self.drift_hist = None
             self.drift_counter = None
 
@@ -69,14 +69,12 @@ class PrometheusBackend(MetricsBackend):
                 ["cause"]
             )
         except ImportError:
-             logger.warning("Prometheus client not installed.")
              self.drift_hist = None
              self.drift_counter = None
 
     def record_drift(self, value: float, labels: Dict[str, str]):
         if self.drift_hist:
             # Prometheus python client labels handling
-            # Filter labels to match expected keys if stricter, but here we just pass 'ref'
             lbls = {"ref": labels.get("ref", "unknown")}
             self.drift_hist.labels(**lbls).observe(value)
 
@@ -84,3 +82,40 @@ class PrometheusBackend(MetricsBackend):
         if self.drift_counter:
             lbls = {"cause": labels.get("cause", "unknown")}
             self.drift_counter.labels(**lbls).inc()
+
+def get_backend(service_name: str, backend_type: str = "prometheus", port: int = 8000) -> MetricsBackend:
+    """
+    Factory to get the requested backend with robust fallback.
+    Order: Requested -> Prometheus (Fallback) -> NoOp.
+    """
+    backend = None
+    active_type = "none"
+
+    # 1. Try Requested
+    if backend_type == "otel":
+        try:
+            import opentelemetry
+            backend = OTelBackend(service_name)
+            active_type = "otel"
+        except ImportError:
+            logger.warning("OpenTelemetry requested but not installed. Falling back to Prometheus.")
+            backend_type = "prometheus" # Fallback
+
+    # 2. Try Prometheus (Requested or Fallback)
+    if backend_type == "prometheus":
+        try:
+            import prometheus_client
+            backend = PrometheusBackend(port=port)
+            active_type = "prometheus"
+        except ImportError:
+            logger.warning("Prometheus requested but not installed. Metrics will be disabled.")
+            backend = NoOpBackend()
+            active_type = "noop"
+            
+    # 3. Default/None
+    if backend is None:
+        backend = NoOpBackend()
+        active_type = "noop"
+        
+    logger.info(f"VIRK Metrics Initialized: Backend={active_type.upper()}")
+    return backend
