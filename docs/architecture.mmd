@@ -1,0 +1,14 @@
+graph LR
+    Inference[Inference Service] -->|Embeddings| MW[Middleware]
+    MW -->|Sync Check| Detector{Drift?}
+    Detector -->|No| Metrics[Prometheus/OTel]
+    Detector -->|Yes| Queue[(Async Queue)]
+
+    subgraph Background Worker
+        Queue --> Fingerprinter
+        Queue --> Slicer
+        Fingerprinter --> Bundler
+    end
+
+    Bundler -->|Zip| Storage[S3 / Local]
+    Bundler -->|Alert| Metrics

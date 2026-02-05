@@ -21,24 +21,24 @@ VIRK is a lightweight flight recorder for vision pipelines. It runs alongside in
 
 <div align="center">
 
-```mermaid
-graph LR
-    Inference[Inference Service] -->|Embeddings| MW[Middleware]
-    MW -->|Sync Check| Detector{Drift?}
-    Detector -->|No| Metrics[Prometheus/OTel]
-    Detector -->|Yes| Queue[(Async Queue)]
-
-    subgraph Background Worker
-        Queue --> Fingerprinter
-        Queue --> Slicer
-        Fingerprinter --> Bundler
-    end
-
-    Bundler -->|Zip| Storage[S3 / Local]
-    Bundler -->|Alert| Metrics
-```
+<a href="docs/architecture.svg">
+  <img src="docs/architecture.svg" width="100%" alt="VIRK architecture diagram" />
+</a>
 
 </div>
+
+To regenerate the diagram:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/render_mermaid.ps1
+```
+
+## Why VIRK
+
+- **Incident-first**: Focused on diagnosing failures, not building a full observability platform.
+- **Reproducible**: Bundles the exact evidence needed to replay and debug an incident.
+- **Actionable**: Points to likely causes (blur, brightness, noise) and affected slices.
+- **Low friction**: Designed to sit alongside inference with minimal integration overhead.
 
 ## Key Features
 
