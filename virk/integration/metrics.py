@@ -108,12 +108,13 @@ def get_backend(service_name: str, backend_type: str = "prometheus", port: int =
             backend = PrometheusBackend(port=port)
             active_type = "prometheus"
         except ImportError:
-            logger.warning("Prometheus requested but not installed. Metrics will be disabled.")
+            logger.warning("Prometheus requested but not installed. Falling back to NoOp.")
             backend = NoOpBackend()
             active_type = "noop"
             
     # 3. Default/None
     if backend is None:
+        logger.warning("Metrics backend unavailable. Falling back to NoOp.")
         backend = NoOpBackend()
         active_type = "noop"
         

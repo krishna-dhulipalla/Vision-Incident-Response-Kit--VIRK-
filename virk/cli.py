@@ -93,9 +93,7 @@ def main():
     elif args.command == "demo-prod":
         import uvicorn
         print(f"Starting VIRK Demo Service on http://{args.host}:{args.port}")
-        # Assuming examples.fastapi_service is importable
-        # We might need to ensure sys.path or import it dynamically
-        uvicorn.run("examples.fastapi_service:app", host=args.host, port=args.port, reload=False)
+        uvicorn.run("virk.examples.fastapi_service:app", host=args.host, port=args.port, reload=False)
     else:
         parser.print_help()
 

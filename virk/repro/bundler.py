@@ -4,6 +4,7 @@ import shutil
 import zipfile
 from typing import List, Dict, Any
 from pathlib import Path
+import sys
 from virk.core.types import Incident
 
 class ReproBundler:
@@ -109,10 +110,20 @@ if __name__ == "__main__":
         
         data_hash = hasher.hexdigest()
         incident.metadata["data_hash"] = data_hash
-        incident.metadata["bundle_version"] = "1.0.0"
+        incident.metadata["bundle_version"] = "1.0.0" # Bundle format version
+        incident.metadata["schema_version"] = "1.0.0" # Manifest schema version
         incident.metadata["sample_count"] = saved_count
+        
+        # 3. Capture Environment (Pip Freeze)
+        try:
+            import subprocess
+            reqs = subprocess.check_output([sys.executable, "-m", "pip", "freeze"]).decode("utf-8")
+            with open(bundle_path / "requirements.txt", "w") as f:
+                f.write(reqs)
+        except Exception as e:
+            print(f"Warning: Could not capture requirements: {e}")
                 
-        # 3. Write manifest
+        # 4. Write manifest
         with open(bundle_path / "manifest.json", "w") as f:
             json.dump(incident.to_dict(), f, indent=2)
             
