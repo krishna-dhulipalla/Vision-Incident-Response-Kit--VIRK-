@@ -113,6 +113,25 @@ VIRK comes with a production-ready demo service you can run immediately:
 virk demo-prod --port 8080
 ```
 
+## Integrations
+
+Popular library examples (optional dependencies):
+
+- YOLOv8: `examples/yolo_integration.py`
+- Hugging Face ViT: `examples/hf_vit_integration.py`
+
+Quick start:
+
+```bash
+# YOLOv8 example
+pip install ultralytics torch torchvision
+python examples/yolo_integration.py
+
+# Hugging Face ViT example
+pip install transformers torch torchvision
+python examples/hf_vit_integration.py
+```
+
 ## CLI Tools
 
 ### Incident Summary
