@@ -6,20 +6,18 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Status](https://img.shields.io/badge/Status-Beta-green)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
 
-### The "Black Box" Flight Recorder for Computer Vision
+[![Tag: MLOps](https://img.shields.io/badge/Tag-MLOps-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
+[![Tag: Computer%20Vision](https://img.shields.io/badge/Tag-Computer%20Vision-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
+[![Tag: Drift%20Detection](https://img.shields.io/badge/Tag-Drift%20Detection-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
+[![Tag: Reliability](https://img.shields.io/badge/Tag-Reliability-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
 
-<br>
-**Production diagnostics for vision model failures.**
-
-[MLOps] • [Computer Vision] • [Drift Detection] • [Reliability]
+### Production incident response and drift forensics for vision models
 
 </div>
 
-VIRK is a lightweight "flight recorder" for various computer vision pipelines. It sits alongside your inference service, detects conceptual drift (blur, lighting, camera shifts), diagnoses the root cause, and automatically bundles "incident packs" for reproducible debugging.
+VIRK is a lightweight flight recorder for vision pipelines. It runs alongside inference, detects distribution drift (blur, lighting, camera shifts), attributes likely causes, and bundles reproducible incident packs for debugging.
 
 ## Architecture
-
-<br>
 
 <div align="center">
 
@@ -41,8 +39,6 @@ graph LR
 ```
 
 </div>
-
-<br>
 
 ## Key Features
 
@@ -157,30 +153,23 @@ virk incident summarize incident_1234abcd.zip
 
 ## Trust & Reliability
 
-VIRK is designed for high-assurance production environments.
+VIRK is explicit about what it records and what it does not. The goal is transparent, reproducible debugging rather than black-box monitoring.
 
-### 1. Reproducibility Guarantees
+### Reproducibility
 
-Every incident bundle is a **self-contained reproduction kit**:
+- Incident bundles include `manifest.json`, a `bundle_version` field, and a data hash over the bundled images.
+- Bundles include a replay script that fixes random seeds for deterministic inspection.
+- Bundles are capped at 20 images by default to keep artifacts small.
 
-- **Manifest Schema v1.0.0**: Strict schema versioning ensures downstream compatibility.
-- **Environment Capture**: Includes `requirements.txt` (pip freeze) to match dependency versions.
-- **Determinism**: Replay script enforces seed `42` for consistent debugging.
+### Failure Modes & Load Shedding
 
-### 2. Failure Modes & Load Shedding
+- Drift detection runs inline; diagnostics (fingerprinting, slicing, bundling) run in a background worker.
+- If the queue is full, new drift events are dropped and a warning is logged.
 
-We prioritize **Inference Latency** over diagnostics.
+### Evidence & Evaluation
 
-- **Normal Operation**: Analysis runs in a background thread.
-- **Overload (Queue Full)**: If the background worker falls behind (>100 items), new drift events are **dropped**.
-- **Metrics**: Drop events are logged as warnings and can be monitored via metrics (planned).
-
-### 3. Verified Datasets
-
-VIRK is benchmarked against strict FPR targets on:
-
-- **CIFAR-10** (General Object Recognition)
-- **Flowers-102** (Fine-grained Classification)
+- The evaluation harness supports CIFAR-10 and Flowers-102 via `virk eval`.
+- Use `virk calibrate` to set thresholds to a target false positive rate on clean data.
 
 ### Benchmarking
 
