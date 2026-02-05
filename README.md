@@ -27,12 +27,6 @@ VIRK is a lightweight flight recorder for vision pipelines. It runs alongside in
 
 </div>
 
-To regenerate the diagram:
-
-```bash
-powershell -ExecutionPolicy Bypass -File scripts/render_mermaid.ps1
-```
-
 ## Why VIRK
 
 - **Incident-first**: Focused on diagnosing failures, not building a full observability platform.
