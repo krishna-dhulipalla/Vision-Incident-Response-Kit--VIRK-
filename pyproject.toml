@@ -33,6 +33,12 @@ dev = [
     "boto3>=1.26.0", # For mocking
     "opentelemetry-api>=1.15.0"
 ]
+demo = [
+    "transformers",
+    "ultralytics",
+    "uvicorn",
+    "fastapi"
+]
 
 [build-system]
 requires = ["setuptools>=61.0"]
