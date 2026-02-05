@@ -6,11 +6,6 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Status](https://img.shields.io/badge/Status-Beta-green)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
 
-[![Tag: MLOps](https://img.shields.io/badge/Tag-MLOps-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
-[![Tag: Computer%20Vision](https://img.shields.io/badge/Tag-Computer%20Vision-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
-[![Tag: Drift%20Detection](https://img.shields.io/badge/Tag-Drift%20Detection-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
-[![Tag: Reliability](https://img.shields.io/badge/Tag-Reliability-informational)](https://github.com/krishna-dhulipalla/Vision-Incident-Response-Kit--VIRK-)
-
 ### Production incident response and drift forensics for vision models
 
 </div>
