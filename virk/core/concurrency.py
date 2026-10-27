@@ -14,8 +14,11 @@ class AsyncWorker:
     """
     
     def __init__(self, max_queue_size: int = 100):
+        if max_queue_size < 1:
+            raise ValueError("max_queue_size must be positive")
         self._queue = queue.Queue(maxsize=max_queue_size)
         self._stop_event = threading.Event()
+        self._state_lock = threading.Lock()
         self._thread = threading.Thread(target=self._worker_loop, daemon=True, name="virk-worker")
         self._thread.start()
         
@@ -27,18 +30,18 @@ class AsyncWorker:
         Submit a task to the background worker.
         Returns True if accepted, False if queue is full (load shedding).
         """
-        if self._stop_event.is_set():
-            return False
-            
-        try:
-            self._queue.put_nowait((func, args, kwargs))
-            return True
-        except queue.Full:
-            logger.warning("VIRK background queue full. Dropping task.")
-            return False
+        with self._state_lock:
+            if self._stop_event.is_set():
+                return False
+            try:
+                self._queue.put_nowait((func, args, kwargs))
+                return True
+            except queue.Full:
+                logger.warning("VIRK background queue full. Dropping task.")
+                return False
 
     def _worker_loop(self):
-        while not self._stop_event.is_set():
+        while not self._stop_event.is_set() or not self._queue.empty():
             try:
                 # Timeout allows checking stop_event periodically
                 item = self._queue.get(timeout=1.0)
@@ -46,14 +49,16 @@ class AsyncWorker:
                 try:
                     func(*args, **kwargs)
                 except Exception as e:
-                    logger.error(f"Error in background task {func.__name__}: {e}")
+                    logger.exception("Error in background task %r: %s", func, e)
                 finally:
                     self._queue.task_done()
             except queue.Empty:
                 continue
 
     def shutdown(self, wait: bool = True):
-        """Signal worker to stop and optionally wait for queue to drain."""
-        self._stop_event.set()
-        if wait:
-            self._thread.join(timeout=5.0)
+        """Reject new work and drain accepted tasks; optionally wait for completion."""
+        with self._state_lock:
+            self._stop_event.set()
+        if wait and threading.current_thread() is not self._thread:
+            self._thread.join()
+            atexit.unregister(self.shutdown)

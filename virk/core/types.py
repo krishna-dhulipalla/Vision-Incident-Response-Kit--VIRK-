@@ -9,6 +9,15 @@ class DriftProfile:
     drift_magnitude: float
     reference_id: str
     timestamp: str
+
+
+@dataclass
+class DetectionEvidence:
+    """Exact sampled operands and settings for replaying a drift decision."""
+    reference_embeddings: np.ndarray
+    current_embeddings: np.ndarray
+    threshold: float
+    gamma: float
     
 @dataclass
 class ShiftFingerprint:

@@ -37,7 +37,8 @@ demo = [
     "transformers",
     "ultralytics",
     "uvicorn",
-    "fastapi"
+    "fastapi",
+    "python-multipart"
 ]
 
 [build-system]

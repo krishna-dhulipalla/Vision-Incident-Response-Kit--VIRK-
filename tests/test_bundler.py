@@ -2,6 +2,8 @@ import pytest
 import os
 import json
 import zipfile
+import subprocess
+import sys
 from pathlib import Path
 from virk.repro.bundler import ReproBundler
 from virk.core.types import Incident, DriftProfile, ShiftFingerprint
@@ -61,3 +63,35 @@ def test_bundler_integrity(tmp_path):
             # Just verify it opens
             with zf.open("requirements.txt") as f:
                 _ = f.read()
+
+
+def test_duplicate_image_names_survive_and_replay_verifies_hash(tmp_path, monkeypatch):
+    monkeypatch.setattr(subprocess, "check_output", lambda *args, **kwargs: b"numpy==1.24.0\n")
+    sources = []
+    for name, content in [("camera_a", b"first image"), ("camera_b", b"second image")]:
+        directory = tmp_path / name
+        directory.mkdir()
+        image = directory / "frame.jpg"
+        image.write_bytes(content)
+        sources.append(str(image))
+    incident = Incident(
+        incident_id="duplicate_names", timestamp="2026-01-01",
+        drift_profile=DriftProfile(True, 0.5, "baseline", "2026-01-01"),
+        fingerprint=ShiftFingerprint(), top_slices=[], affected_sample_ids=[],
+    )
+    bundle = ReproBundler(str(tmp_path / "out")).bundle(incident, sources)
+    extracted = tmp_path / "extracted"
+    with zipfile.ZipFile(bundle) as archive:
+        images = [name for name in archive.namelist() if name.startswith("images/")]
+        assert len(images) == 2
+        assert {archive.read(name) for name in images} == {b"first image", b"second image"}
+        archive.extractall(extracted)
+    manifest = json.loads((extracted / "manifest.json").read_text())
+    assert manifest["metadata"]["sample_count"] == 2
+    result = subprocess.run([sys.executable, "replay.py"], cwd=extracted, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "Bundled image hash verified" in result.stdout
+    (extracted / images[0]).write_bytes(b"tampered")
+    result = subprocess.run([sys.executable, "replay.py"], cwd=extracted, capture_output=True, text=True)
+    assert result.returncode == 1
+    assert "hash does not match" in result.stderr

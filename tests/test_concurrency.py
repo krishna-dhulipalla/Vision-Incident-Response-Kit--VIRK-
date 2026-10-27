@@ -1,5 +1,6 @@
 import time
 import pytest
+import threading
 from virk.core.concurrency import AsyncWorker
 
 def test_async_worker_basic():
@@ -68,3 +69,39 @@ def test_async_worker_exception_handling():
     worker.shutdown()
     
     assert result == ["OK"], "Worker thread should survive exceptions"
+
+
+def test_shutdown_drains_accepted_work():
+    started, release = threading.Event(), threading.Event()
+    worker = AsyncWorker()
+    result = []
+
+    def blocked_task():
+        started.set()
+        assert release.wait(timeout=5)
+        result.append("first")
+
+    try:
+        assert worker.submit(blocked_task)
+        assert started.wait(timeout=5)
+        assert worker.submit(result.append, "second")
+        worker.shutdown(wait=False)
+        assert not worker.submit(result.append, "rejected")
+    finally:
+        release.set()
+        worker.shutdown()
+    assert result == ["first", "second"]
+    assert worker._queue.unfinished_tasks == 0
+
+
+def test_failing_callable_object_does_not_kill_worker():
+    class FailingTask:
+        def __call__(self):
+            raise ValueError("callable without __name__")
+
+    worker = AsyncWorker()
+    result = []
+    assert worker.submit(FailingTask())
+    assert worker.submit(result.append, "survived")
+    worker.shutdown()
+    assert result == ["survived"]

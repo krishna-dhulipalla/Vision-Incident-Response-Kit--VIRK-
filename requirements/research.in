@@ -1,0 +1,16 @@
+# Reproducible CPU evaluation stack. Keep runtime ranges in pyproject.toml flexible.
+# PyTorch / torchvision pairing: https://pytorch.org/get-started/previous-versions/
+torch==2.5.1
+torchvision==0.20.1
+timm==1.0.11
+numpy==1.26.4
+scipy==1.13.1
+scikit-learn==1.5.2
+pandas==2.2.3
+pillow==11.0.0
+tqdm==4.67.1
+huggingface-hub==0.26.2
+safetensors==0.4.5
+pytest==8.3.4
+setuptools==75.6.0
+wheel==0.45.1

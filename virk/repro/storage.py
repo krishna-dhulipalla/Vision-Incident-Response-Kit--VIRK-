@@ -19,7 +19,10 @@ class LocalStorage(ArtifactStorage):
         
     def save(self, local_path: Path, remote_key: str) -> str:
         target = self.output_dir / remote_key
-        shutil.copy2(local_path, target)
+        if local_path.resolve() != target.resolve():
+            shutil.copy2(local_path, target)
+        elif not local_path.is_file():
+            raise FileNotFoundError(local_path)
         return str(target.absolute())
 
 class S3Storage(ArtifactStorage):
